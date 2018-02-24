@@ -1,12 +1,14 @@
 import json
 from unittest import TestCase
-from unittest.mock import patch, mock_open
+from unittest.mock import patch, mock_open, call
 
 from constants import BASE_API_URL, URL_PARAMS_FILE
-from new_flat import Onliner, QueryUrl, SearchConfig
+from new_flat import Onliner, QueryUrl, SearchConfig, Flat
 
 
 class TestOnliner(TestCase):
+    maxDiff = None
+
     def setUp(self):
         self.site_url = 'https://r.onliner.by/ak/?rent_type%5B%5D=3_rooms&rent_type%5B%5D=4_roo' \
                         'ms&rent_type%5B%5D=5_rooms&rent_type%5B%5D=6_rooms&price%5Bmin%5D=250&' \
@@ -26,13 +28,13 @@ class TestOnliner(TestCase):
             'bounds[rt][long]': ['27.740993499755863'],
 
         }
+
         self.example_params_dict = example_params_dict
         self.example_json_params = json.dumps(example_params_dict)
 
-    @patch('new_flat.SearchConfig.write')
-    def test_parse_url_to_dict(self, write_url_params):
-        Onliner().parse_url(self.site_url)
-        self.assertDictEqual(write_url_params.call_args[0][0], self.example_params_dict)
+    def test_parse_url_to_dict(self):
+        search_config = Onliner().parse_url(self.site_url)
+        self.assertDictEqual(search_config, self.example_params_dict)
 
     @patch('new_flat.open', new_callable=mock_open)
     @patch('new_flat.json.dump')
@@ -51,3 +53,38 @@ class TestOnliner(TestCase):
             result = SearchConfig.read()
         m.assert_called_once_with(URL_PARAMS_FILE)
         self.assertEqual(result, self.example_params_dict)
+
+    @patch.object(Onliner, 'parse_apartment', side_effect=['lol', 'kek'])
+    def test_parse_response(self, patched_parse_apartment):
+        example_response = {'apartments': ['lol', 'kek']}
+        result = Onliner().parse_response(example_response)
+        patched_parse_apartment.assert_has_calls([
+            call(example_response['apartments'][0]),
+            call(example_response['apartments'][1])
+        ])
+        self.assertListEqual(['lol', 'kek'], result)
+
+    def test_parse_apartment(self):
+        example_apartment = {
+            'id': 265011,
+            'price': {
+                'amount': '666.00',
+                'currency': 'USD',
+                'converted': {'BYN': {'amount': '783.72',
+                                      'currency': 'BYN'},
+                              'USD': {'amount': '400.00',
+                                      'currency': 'USD'}}},
+            'rent_type': '3_rooms',
+            'location': {'address': 'Фабричная',
+                         'user_address': 'Минск, Фабричная, 16',
+                         'latitude': 53.864586,
+                         'longitude': 27.695686},
+            'photo': 'https://content.onliner.by/apartment_rentals/299654/600x400/cd992783152f3cdccb68128e11fd91c2.jpeg',
+            'contact': {'owner': True},
+            'created_at': '2017-10-05T17:55:10+0300',
+            'last_time_up': '2018-02-24T10:17:21+0300',
+            'up_available_in': 33488,
+            'url': 'https://r.onliner.by/ak/apartments/265011'}
+        expected = Flat(id=265011, price=400, url='https://r.onliner.by/ak/apartments/265011')
+        actual = Onliner.parse_apartment(example_apartment)
+        self.assertEqual(expected, actual)

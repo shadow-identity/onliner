@@ -13,5 +13,6 @@ URL_PARAMETERS = {
     'page': ['1']
 }
 
+FLATS_DB_NAME = 'flats_db.json'
 APP_DIR = os.path.dirname(__file__)
 URL_PARAMS_FILE = os.path.join(APP_DIR, 'query_params.json')

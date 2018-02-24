@@ -4,58 +4,107 @@
 Параметры: URL из окна браузера
 
 Первый запуск или запуск с URL:
-- Сохранение параметров поиска в конфиг
+✓ Сохранение параметров поиска в конфиг
 - Поиск квартир
 
 Запуск без параметров:
-- Поиск квартир
+✓ Поиск квартир
 
 Поиск квартир:
-- Получаем url и query из конфига
+✓ Получаем url и query из конфига
 - Отправляем запрос, парсим из ответа список квартир
-- Сравниваем список с тем, что есть в базе
+✓ Сравниваем список с тем, что есть в базе
 - Если есть новое:
-  + сохраняем это в базу
-  + показываем уведомление
+  ✓ сохраняем это в базу
+  - показываем уведомление
 
 
-- Параметры поиска в конфиге в yaml
-- База квартир в yaml
+✓ Параметры поиска в конфиге в json
+✓ База квартир в json
 """
 
 import json
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, asdict
 from os.path import isfile
-from typing import List
+from typing import List, Optional, NewType, Dict
 from urllib.parse import parse_qs, urlparse
 
 import requests
+from tinydb import TinyDB, Query
 
-from constants import BASE_API_URL, URL_PARAMETERS, URL_PARAMS_FILE
-
-
-def get_new_flats():
-    response = requests.get(BASE_API_URL, params=URL_PARAMETERS)
-    flats = json.loads(response.text)
-    filter_new_flats(flats)
+from constants import BASE_API_URL, URL_PARAMS_FILE, FLATS_DB_NAME
 
 
-def filter_new_flats(flats: List) -> List:
-    """ Compare flats from params with flats from DB, save new flats and make an alert """
+def get_new_flats(new_search_url: str = None):
+    """
+    Doing all stuff. As result returns alert if new flats was added
+    # Save search config if new_search_url is given
+    # Prepare URL
+    # Request
+    # Parse response
+    # Check if new flats in response
+    # Make alert if any
+    """
+    if new_search_url:
+        search_config = Onliner.parse_url(new_search_url)
+        SearchConfig().write(search_config)
+    else:
+        search_config = SearchConfig().read()
+    query_url = Onliner().make_search_url(search_config)
+    response = requests.get(query_url.url_base, params=query_url.params).json()
+    flats = Onliner().parse_response(response)
+    for flat in flats:
+        if Flats().is_new(flat):
+            do_alert(flat)
 
-    return []
 
-
-@dataclass()
+@dataclass
 class QueryUrl:
     url_base: str
     params: dict
 
+
+FlatId = NewType('FlatId', int)
+
+
 @dataclass
-class Flats:
+class Flat:
+    id: FlatId
     price: int
-    coordinate_lat: float
-    coordinate_long: float
+    url: str
+
+
+class Flats:
+    """
+    Interface to operate with Flats data base
+    """
+
+    def __init__(self):
+        """ connect to a db """
+        self.db = TinyDB(FLATS_DB_NAME)
+
+    def is_new(self, flat: Flat) -> bool:
+        old_record = self._get_flat(flat.id)
+        if old_record:
+            if self._is_flats_identical(old_record, flat):
+                return False
+        self._upsert_flat(flat)
+        return True
+
+    def _get_flat(self, flat_id: FlatId) -> Optional[Flat]:
+        """ db get query """
+        flat_q = Query()
+        return self.db.get(flat_q.id == flat_id)
+
+    def _is_flats_identical(self, old_record: Flat, flat: Flat) -> bool:
+        """ db compare instances """
+        return old_record == flat
+
+    def _upsert_flat(self, flat: Flat) -> None:
+        """ db upsert given flat """
+        flat_q = Query()
+        self.db.upsert(asdict(flat), flat_q.id == flat.id)
 
 
 class SearchConfig:
@@ -78,7 +127,7 @@ class Onliner:
     url_base = BASE_API_URL
 
     @staticmethod
-    def parse_url(public_url: str) -> None:
+    def parse_url(public_url: str) -> Dict:
         """
         :type public_url: str URL which user can see in browser window
         """
@@ -86,11 +135,30 @@ class Onliner:
         query = parse_qs(parsed_url.query)
         coordinates = parse_qs(parsed_url.fragment)
         query.update(coordinates)
-        SearchConfig.write(query)
+        return query
 
     @staticmethod
     def make_search_url(url_params: dict) -> QueryUrl:
         return QueryUrl(url_base=BASE_API_URL,
                         params=url_params)
 
+    @staticmethod
+    def parse_apartment(apartment: Dict) -> Flat:
+        return Flat(
+            id=apartment['id'],
+            price=math.floor(float(apartment['price']['converted']['USD']['amount'])),
+            url=apartment['url']
+        )
+
+    def parse_response(self, response: Dict) -> List[Flat]:
+        return [self.parse_apartment(apartment) for apartment in response['apartments']]
+
     # todo: open notification with osascript -e 'display notification "Lorem ipsum dolor sit amet" with title "Title"'
+
+
+def do_alert(flat: Flat) -> None:
+    pass
+
+
+if __name__ == '__main__':
+    get_new_flats()
