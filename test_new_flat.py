@@ -33,7 +33,6 @@ class TestGetNewFlats(TestCase):
         self.requests_patcher = patch('new_flat.requests')
         self.requests_mock = self.requests_patcher.start()
 
-
     def tearDown(self):
         self.read_patcher.stop()
         self.make_search_url_patcher.stop()

@@ -3,6 +3,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from tinydb import Query
+from tinydb.database import Document
 
 from constants import FLATS_DB_NAME
 from new_flat import Flats, Flat
@@ -10,7 +11,7 @@ from new_flat import Flats, Flat
 
 class TestFlats(TestCase):
     def setUp(self):
-        self.flat = Flat(id=1, price=2, coordinate_lat=0, coordinate_long=0)
+        self.flat = Flat(id=1, price=2, url='ex.com')
         self.db_patcher = patch('new_flat.TinyDB')
         self.db_mock = self.db_patcher.start()
 
@@ -41,12 +42,15 @@ class TestFlats(TestCase):
         _is_flats_identical_mock.assert_called_once()
 
     def test_get_flat(self):
+        self.db_mock.return_value.get.return_value = Document(
+            asdict(self.flat), 'foo',
+        )
         Flats()._get_flat(self.flat.id)
         self.db_mock.return_value.get.assert_called_once_with(Query().id == self.flat.id)
 
     def test_is_flats_identical(self):
-        self.assertTrue(Flats()._is_flats_identical(self.flat, self.flat))
-        self.assertFalse(Flats()._is_flats_identical(self.flat, {}))
+        self.assertTrue(Flats()._is_flats_identical(self.flat, Flat(id=1, price=2, url='ex.com')))
+        self.assertFalse(Flats()._is_flats_identical(self.flat, Flat(id=1, price=3, url='sldk')))
 
     def test_upsert_flat(self):
         Flats()._upsert_flat(self.flat)
@@ -58,3 +62,5 @@ class TestFlats(TestCase):
     def test_init(self):
         Flats()
         self.db_mock.assert_called_once_with(FLATS_DB_NAME)
+
+    # todo: cover creating of a new db

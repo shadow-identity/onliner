@@ -23,7 +23,7 @@
 ✓ Параметры поиска в конфиге в json
 ✓ База квартир в json
 """
-
+import argparse
 import json
 import math
 from dataclasses import dataclass, asdict
@@ -96,7 +96,7 @@ class Flats:
     def _get_flat(self, flat_id: FlatId) -> Optional[Flat]:
         """ db get query """
         flat_q = Query()
-        return self.db.get(flat_q.id == flat_id)
+        return Flat(**self.db.get(flat_q.id == flat_id))
 
     def _is_flats_identical(self, old_record: Flat, flat: Flat) -> bool:
         """ db compare instances """
@@ -158,9 +158,14 @@ class Onliner:
 
 
 def do_alert(flat: Flat) -> None:
-    pass
+    print(f'New flat for ${flat.price}! {flat.url}')
 
 
 if __name__ == '__main__':
-    # todo: argparse
-    get_new_flats()
+    parser = argparse.ArgumentParser(description='Check new flats at Onliner.by')
+    parser.add_argument('--url', '-u', type=str,
+                        help='Onliner.by url you want to use')
+
+    args = parser.parse_args()
+
+    get_new_flats(args.url)
