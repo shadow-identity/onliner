@@ -42,15 +42,20 @@ class TestFlats(TestCase):
         _is_flats_identical_mock.assert_called_once()
 
     def test_get_flat(self):
-        self.db_mock.return_value.get.return_value = Document(
-            asdict(self.flat), 'foo',
-        )
-        Flats()._get_flat(self.flat.id)
+        self.db_mock.return_value.get.return_value = Document(asdict(self.flat), 'foo')
+        actual = Flats()._get_flat(self.flat.id)
         self.db_mock.return_value.get.assert_called_once_with(Query().id == self.flat.id)
+        self.assertEqual(self.flat, actual)
+
+    def test_get_flat_clean_db(self):
+        self.db_mock.return_value.get.return_value = None
+        actual = Flats()._get_flat(self.flat.id)
+        self.db_mock.return_value.get.assert_called_once_with(Query().id == self.flat.id)
+        self.assertEqual(None, actual)
 
     def test_is_flats_identical(self):
         self.assertTrue(Flats()._is_flats_identical(self.flat, Flat(id=1, price=2, url='ex.com')))
-        self.assertFalse(Flats()._is_flats_identical(self.flat, Flat(id=1, price=3, url='sldk')))
+        self.assertFalse(Flats()._is_flats_identical(self.flat, Flat(id=1, price=3, url='ex.com')))
 
     def test_upsert_flat(self):
         Flats()._upsert_flat(self.flat)

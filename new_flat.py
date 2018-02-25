@@ -96,7 +96,8 @@ class Flats:
     def _get_flat(self, flat_id: FlatId) -> Optional[Flat]:
         """ db get query """
         flat_q = Query()
-        return Flat(**self.db.get(flat_q.id == flat_id))
+        result = self.db.get(flat_q.id == flat_id)
+        return Flat(**result) if result else None
 
     def _is_flats_identical(self, old_record: Flat, flat: Flat) -> bool:
         """ db compare instances """
