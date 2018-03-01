@@ -2,8 +2,9 @@ import json
 from unittest import TestCase
 from unittest.mock import patch, mock_open, call
 
-from constants import BASE_API_URL, URL_PARAMS_FILE
-from new_flat import Onliner, QueryUrl, SearchConfig, Flat
+from onliner_notify.constants import BASE_API_URL, URL_PARAMS_FILE
+from onliner_notify.notify import Onliner, SearchConfig
+from typings import QueryUrl, Flat
 
 
 class TestOnliner(TestCase):
@@ -36,8 +37,8 @@ class TestOnliner(TestCase):
         search_config = Onliner().parse_url(self.site_url)
         self.assertDictEqual(search_config, self.example_params_dict)
 
-    @patch('new_flat.open', new_callable=mock_open)
-    @patch('new_flat.json.dump')
+    @patch('onliner_notify.notify.open', new_callable=mock_open)
+    @patch('onliner_notify.notify.json.dump')
     def test_write_url_params(self, mock_dump, mocked_open):
         SearchConfig().write(self.example_params_dict)
         mock_dump.assert_called_once_with(self.example_params_dict,
@@ -49,7 +50,8 @@ class TestOnliner(TestCase):
 
     def test_read_url_params(self):
         """ should read from file and return QS instance """
-        with patch('new_flat.open', mock_open(read_data=self.example_json_params)) as m:
+        with patch('onliner_notify.notify.open',
+                   mock_open(read_data=self.example_json_params)) as m:
             result = SearchConfig.read()
         m.assert_called_once_with(URL_PARAMS_FILE)
         self.assertEqual(result, self.example_params_dict)

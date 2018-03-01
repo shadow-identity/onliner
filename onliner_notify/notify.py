@@ -5,7 +5,7 @@
 
 Первый запуск или запуск с URL:
 ✓ Сохранение параметров поиска в конфиг
-- Парсинг параметра с url
+✓ Парсинг параметра с url
 ✓ Поиск квартир
 
 Запуск без параметров:
@@ -26,15 +26,16 @@
 import argparse
 import json
 import math
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 from os.path import isfile
-from typing import List, Optional, NewType, Dict
+from typing import List, Optional, Dict
 from urllib.parse import parse_qs, urlparse
 
 import requests
 from tinydb import TinyDB, Query
 
-from constants import BASE_API_URL, URL_PARAMS_FILE, FLATS_DB_NAME
+from onliner_notify.constants import BASE_API_URL, URL_PARAMS_FILE, FLATS_DB_NAME
+from typings import QueryUrl, FlatId, Flat
 
 
 def get_new_flats(new_search_url: str = None):
@@ -57,23 +58,7 @@ def get_new_flats(new_search_url: str = None):
     flats = Onliner().parse_response(response)
     for flat in flats:
         if Flats().is_new(flat):
-            do_alert(flat)
-
-
-@dataclass
-class QueryUrl:
-    url_base: str
-    params: dict
-
-
-FlatId = NewType('FlatId', int)
-
-
-@dataclass
-class Flat:
-    id: FlatId
-    price: int
-    url: str
+            Notify().new_flat(flat)
 
 
 class Flats:
@@ -155,11 +140,16 @@ class Onliner:
     def parse_response(self, response: Dict) -> List[Flat]:
         return [self.parse_apartment(apartment) for apartment in response['apartments']]
 
-    # todo: open notification with osascript -e 'display notification "Lorem ipsum dolor sit amet" with title "Title"'
 
+class Notify:
+    def new_flat(self, flat: Flat) -> None:
+        # todo: open notification with osascript -e 'display notification "Lorem ipsum dolor sit amet" with title "Title"'
+        self._make_notification(f'New flat for ${flat.price}! {flat.url}')
 
-def do_alert(flat: Flat) -> None:
-    print(f'New flat for ${flat.price}! {flat.url}')
+    @staticmethod
+    def _make_notification(message):
+        print(message)
+
 
 
 if __name__ == '__main__':

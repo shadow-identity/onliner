@@ -5,14 +5,15 @@ from unittest.mock import patch
 from tinydb import Query
 from tinydb.database import Document
 
-from constants import FLATS_DB_NAME
-from new_flat import Flats, Flat
+from onliner_notify.constants import FLATS_DB_NAME
+from onliner_notify.notify import Flats
+from typings import Flat
 
 
-class TestFlats(TestCase):
+class TestFlatsPatchDb(TestCase):
     def setUp(self):
         self.flat = Flat(id=1, price=2, url='ex.com')
-        self.db_patcher = patch('new_flat.TinyDB')
+        self.db_patcher = patch('onliner_notify.notify.TinyDB')
         self.db_mock = self.db_patcher.start()
 
     def tearDown(self):
@@ -67,5 +68,3 @@ class TestFlats(TestCase):
     def test_init(self):
         Flats()
         self.db_mock.assert_called_once_with(FLATS_DB_NAME)
-
-    # todo: cover creating of a new db
