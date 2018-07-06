@@ -1,7 +1,8 @@
 from unittest import TestCase
 from unittest.mock import patch, call
 
-from new_flat import get_new_flats, QueryUrl, Flat, Onliner, SearchConfig, Flats
+from onliner_notify.notify import get_new_flats, Onliner, SearchConfig, Flats, Notify
+from typings import QueryUrl, Flat
 
 
 class TestGetNewFlats(TestCase):
@@ -25,12 +26,14 @@ class TestGetNewFlats(TestCase):
         self.parse_url_patcher = patch.object(Onliner, 'parse_url')
         self.parse_url_mock = self.parse_url_patcher.start()
 
+        self.orm_patcher = patch('onliner_notify.notify.TinyDB')
+        self.orm_patcher.start()
         self.is_new_flats_patcher = patch.object(Flats, 'is_new')
         self.is_new_flats_mock = self.is_new_flats_patcher.start()
         self.is_new_flats_mock.side_effect = [True, False]
-        self.do_alert_patcher = patch('new_flat.do_alert')
+        self.do_alert_patcher = patch.object(Notify, 'new_flat')
         self.do_alert_mock = self.do_alert_patcher.start()
-        self.requests_patcher = patch('new_flat.requests')
+        self.requests_patcher = patch('onliner_notify.notify.requests')
         self.requests_mock = self.requests_patcher.start()
 
     def tearDown(self):
@@ -42,6 +45,7 @@ class TestGetNewFlats(TestCase):
         self.requests_patcher.stop()
         self.write_patcher.stop()
         self.parse_url_patcher.stop()
+        self.orm_patcher.stop()
 
     def test_get_flats(self):
         flat1, flat2 = [self.flat1, self.flat2]
